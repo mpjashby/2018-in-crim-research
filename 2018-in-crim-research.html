@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Matt Ashby" />
+
+
+<title>What got published in criminology journals in 2018?</title>
+
+<script src="2018-in-crim-research_files/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="2018-in-crim-research_files/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="2018-in-crim-research_files/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="2018-in-crim-research_files/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="2018-in-crim-research_files/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="2018-in-crim-research_files/navigation-1.1/tabsets.js"></script>
+<link href="2018-in-crim-research_files/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="2018-in-crim-research_files/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">What got published in criminology journals in 2018?</h1>
+<h4 class="author"><em><a href="http://lesscrime.info/">Matt Ashby</a></em></h4>
+<h4 class="date"><em>1 January 2019</em></h4>
+
+</div>
+
+
+<!--
+
+The data used in this project are extracted from the CrimPapers SQL database 
+using the queries:
+
+/* select all active journals as of 31/12/2018 */
+SELECT `journals`.`id` AS `journal_id`, 
+  `journals`.`name`, 
+  `publishers`.`publisher_name` AS `publisher`,
+  `journals`.`homepage`, 
+  `journals`.`impact` 
+FROM `journals`, `publishers` 
+WHERE `active` = 1
+  AND `journals`.`publisher` = `publishers`.`id`
+
+/* select all journal articles published in 2018 */
+SELECT `articles`.`id` AS `article_id`, 
+  `articles`.`title`, 
+  `articles`.`description`, 
+  `articles`.`link`, 
+  `articles`.`timestamp`, 
+  `articles`.`clicks`, 
+  `journals`.`name` AS `journal` 
+FROM `articles`, `journals` 
+WHERE `articles`.`timestamp` >= "2018-01-01 00:00:00" 
+  ANd `articles`.`timestamp` < "2019-01-01 00:00:00"
+  AND `articles`.`excluded` = 0
+  AND `journals`.`active` = 1
+  AND `journals`.`id` = `articles`.`journal`
+ORDER BY `articles`.`id` ASC
+
+The resulting records are stored in CSV files.
+
+-->
+<p><a href="http://lesscrime.info/crimpapers/">CrimPapers</a> is a service that provides alerts on new papers published in criminology, criminal justice and related journals. Alerts are available as a <a href="http://lesscrime.info/crimpapers/today/">daily email</a>, <a href="http://lesscrime.info/crimpapers/thisweek/">weekly email</a>, <a href="https://twitter.com/CrimPapers">Twitter feed</a> or <a href="http://lesscrime.info/crimpapers/rss/">RSS feed</a>. As of the end of 2018, about 4,300 people subscribe to CrimPapers alerts in one format or another. The service is completely free: <a href="http://lesscrime.info/crimpapers/">sign up or get more information</a>.</p>
+<p>We can use the information gathered to generate these alerts to find out more about what gets published in criminology journals. Unfortunately, journal publishers only provide very limited information about articles, so this analysis is largely based on article titles. Hopefully in future publishers will provide more information in their RSS feeds. In the meantime, this is a basic look at what got published in 2018.</p>
+<div id="there-are-more-than-100-criminology-journals" class="section level1">
+<h1>There are more than 100 criminology journals</h1>
+<p>As of the end of 2018, CrimPapers tracks articles in <strong><a href="http://lesscrime.info/crimpapers/list/">110 criminology journals</a></strong>, including criminal justice, penology and terrorism. This is more criminology journals than I would ever have guessed existed before starting a list of them, yet the number is rising: <em><a href="http://www.annualreviews.org/journal/criminol">Annual Review of Criminology</a></em> and <em><a href="https://www.tandfonline.com/loi/rjej20">Justice Evaluation Journal</a></em> launched this year, on top of several launches in 2017.</p>
+<p>There were 18 publishers producing criminology journals in 2018. Three publishers (Sage, Taylor and Francis, Springer) released more than three quarters of all articles this year, while three others (University of Chicago Press, Equinox, Maklu-Online) released fewer than 10 articles each.</p>
+<p>As well as general criminology journals such as <em><a href="http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1745-9125">Criminology</a></em> and the various national and regional journals, there are over 80 specialist journals covering different topics. These journals can be approximately categorized as:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Category</th>
+<th align="right">Journals</th>
+<th align="right">Articles</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">general/regional</td>
+<td align="right">31</td>
+<td align="right">26%</td>
+</tr>
+<tr class="even">
+<td align="left">criminal justice</td>
+<td align="right">18</td>
+<td align="right">10%</td>
+</tr>
+<tr class="odd">
+<td align="left">policing</td>
+<td align="right">11</td>
+<td align="right">10%</td>
+</tr>
+<tr class="even">
+<td align="left">violence</td>
+<td align="right">9</td>
+<td align="right">17%</td>
+</tr>
+<tr class="odd">
+<td align="left">health and psychology of crime</td>
+<td align="right">8</td>
+<td align="right">6%</td>
+</tr>
+<tr class="even">
+<td align="left">terrorism</td>
+<td align="right">6</td>
+<td align="right">7%</td>
+</tr>
+<tr class="odd">
+<td align="left">gender and crime</td>
+<td align="right">5</td>
+<td align="right">4%</td>
+</tr>
+<tr class="even">
+<td align="left">sex offending</td>
+<td align="right">5</td>
+<td align="right">7%</td>
+</tr>
+<tr class="odd">
+<td align="left">penology</td>
+<td align="right">4</td>
+<td align="right">2%</td>
+</tr>
+<tr class="even">
+<td align="left">other</td>
+<td align="right">13</td>
+<td align="right">12%</td>
+</tr>
+</tbody>
+</table>
+<p>The number of journals focused on criminal justice, policing and penology (33 journals between the three categories) indicates the focus of criminologists on formal responses to crime. Conversely, there is only one specialist journal for crime prevention (<em><a href="http://www.palgrave-journals.com/cpcs/">Crime Prevention and Community Safety</a></em>) and no specialist journals for topics such as crime analysis.</p>
+<p>There are fewer journals focused on specific types of crime, but again these perhaps indicate the topics that primarily interest criminologists. Violence, sex offending and terrorism are the only crime types with more than two specialist journals. There are many common and important crime types that have only one specialist journal (such as <em><a href="http://www.emeraldinsight.com/loi/jfc">Journal of Financial Crime</a></em>) or no journals at all. Articles covering these crime types can of-course be published in general criminology journals, but authors may face the additional hurdle of editors wanting content that has general applicability. This may mean there is less of an evidence base for types of crime that are not fashionable enough to have their own journals.</p>
+</div>
+<div id="there-are-more-criminology-articles-than-you-can-possibly-read" class="section level1">
+<h1>There are more criminology articles than you can possibly read</h1>
+<p>In 2018 there were <strong>4,486 different articles</strong> published in criminology journals, an average of 12 per day or 86 per week. <em>Journal of Interpersonal Violence</em>, published by Sage, released 452 articles during the year (an average of 38 a month), which suggests an impressive amount of editorial work. <!--
+*Journal of Interpersonal Violence*, *Child Abuse and Neglect*, *Deviant Behavior*, *International Journal of Offender Therapy and Comparative Criminology* and *Criminal Justice and Behaviour* all published more than 100 articles during the year.
+--></p>
+<p>The median journal published 29 articles during the year, with half of journals (including all of the top five by impact factor) publishing between 19 and 48 articles each.</p>
+<p>We can explore the subjects of journal articles by looking for the most-common words and two- and three-word phrases in article titles.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Rank</th>
+<th align="left">Single Words</th>
+<th align="left">Two-Word Phrases</th>
+<th align="left">Three-Word Phrases</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left">violence (573)</td>
+<td align="left">book review (97)</td>
+<td align="left">intimate partner violence (175)</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left">police (440)</td>
+<td align="left">criminal justice (88)</td>
+<td align="left">child sexual abuse (48)</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">sexual (383)</td>
+<td align="left">sexual abuse (87)</td>
+<td align="left">criminal justice system (22)</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="left">crime (355)</td>
+<td align="left">mental health (71)</td>
+<td align="left">body worn cameras (15)</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="left">justice (235)</td>
+<td align="left">sexual assault (70)</td>
+<td align="left">adverse childhood experiences (13)</td>
+</tr>
+<tr class="even">
+<td align="right">6</td>
+<td align="left">risk (224)</td>
+<td align="left">systematic review (55)</td>
+<td align="left">childhood sexual abuse (13)</td>
+</tr>
+<tr class="odd">
+<td align="right">7</td>
+<td align="left">partner (217)</td>
+<td align="left">domestic violence (52)</td>
+<td align="left">randomized controlled trial (12)</td>
+</tr>
+<tr class="even">
+<td align="right">8</td>
+<td align="left">intimate (215)</td>
+<td align="left">police officers (47)</td>
+<td align="left">low self control (11)</td>
+</tr>
+<tr class="odd">
+<td align="right">9</td>
+<td align="left">child (210)</td>
+<td align="left">sexual violence (44)</td>
+<td align="left">partner violence among (11)</td>
+</tr>
+<tr class="even">
+<td align="right">10</td>
+<td align="left">social (193)</td>
+<td align="left">law enforcement (43)</td>
+<td align="left">nationally representative sample (9)</td>
+</tr>
+</tbody>
+</table>
+<p>Again we see particular focus on violence (especially intimate partner violence and child abuse) and the criminal justice system. Also evident in the two- and three-word phrases are criminological methods such as the systematic review and the randomized controlled trial. Some currently popular topics are also present, including body-worn video cameras (“body worn” appeared in 19 article titles) and adverse childhood experiences (“adverse childhood” appeared in 15 article titles).</p>
+<p>We can also look at the words that most-often modify (i.e. appear directly before) the most-common single words:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Most-Common Word</th>
+<th align="left">Most-Common Modifiers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">violence</td>
+<td align="left">partner (182), domestic (52), sexual (44), dating (29), family (15)</td>
+</tr>
+<tr class="even">
+<td align="left">police</td>
+<td align="left">among (10), national (4), exploring (3), female (3), municipal (3)</td>
+</tr>
+<tr class="odd">
+<td align="left">sexual</td>
+<td align="left">child (55), childhood (15), campus (8), commercial (6), harmful (6)</td>
+</tr>
+<tr class="even">
+<td align="left">crime</td>
+<td align="left">organised (16), violent (16), organized (13), hate (11), collar (9)</td>
+</tr>
+<tr class="odd">
+<td align="left">justice</td>
+<td align="left">criminal (88), procedural (29), juvenile (19), restorative (19), youth (4)</td>
+</tr>
+<tr class="even">
+<td align="left">risk</td>
+<td align="left">high (17), violence (5), dynamic (4), sexual (4), victimization (4)</td>
+</tr>
+<tr class="odd">
+<td align="left">partner</td>
+<td align="left">intimate (198), male (2), perpetrate (2), physical (1), psychological (1)</td>
+</tr>
+<tr class="even">
+<td align="left">intimate</td>
+<td align="left">experiencing (6), physical (6), experienced (3), sexual (3), addressing (2)</td>
+</tr>
+<tr class="odd">
+<td align="left">child</td>
+<td align="left">among (5), parent (5), online (3), preventing (3), gender (2)</td>
+</tr>
+<tr class="even">
+<td align="left">social</td>
+<td align="left">using (5), informal (3), online (2), perceived (2), policing (2)</td>
+</tr>
+</tbody>
+</table>
+<p>Looking at word co-occurrence like this mainly confirms the patterns we’ve already seen, but gives some additional information about the types of risk and justice commonly mentioned in article titles.</p>
+<p>Some specialist journals publish large numbers of papers (<em>Journal of Interpersonal Violence</em>, <em>Child Abuse and Neglect</em>, <em>Deviant Behavior</em>, <em>International Journal of Offender Therapy and Comparative Criminology</em> and <em>Criminal Justice and Behaviour</em> all published more than 100 articles in 2018), which may skew the most-common topics. Restricting the search for common words and phrases to only the 31 general and regional journals produces somewhat different results. Terms that do not appear in the corresponding table for all journals are marked in bold.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Rank</th>
+<th align="left">Single Words</th>
+<th align="left">Two-Word Phrases</th>
+<th align="left">Three-Word Phrases</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left">crime (174)</td>
+<td align="left">criminal justice (29)</td>
+<td align="left">randomized controlled trial (8)</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left">justice (91)</td>
+<td align="left">book review (19)</td>
+<td align="left"><strong>risk terrain modeling</strong> (7)</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">police (88)</td>
+<td align="left"><strong>self control</strong> (18)</td>
+<td align="left">intimate partner violence (6)</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="left"><strong>criminal</strong> (75)</td>
+<td align="left"><strong>crime prevention</strong> (14)</td>
+<td align="left">low self control (6)</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="left">risk (68)</td>
+<td align="left"><strong>substance use</strong> (11)</td>
+<td align="left">body worn cameras (5)</td>
+</tr>
+<tr class="even">
+<td align="right">6</td>
+<td align="left">violence (60)</td>
+<td align="left"><strong>united states</strong> (11)</td>
+<td align="left">criminal justice system (5)</td>
+</tr>
+<tr class="odd">
+<td align="right">7</td>
+<td align="left">social (55)</td>
+<td align="left">mental health (10)</td>
+<td align="left"><strong>general strain theory</strong> (5)</td>
+</tr>
+<tr class="even">
+<td align="right">8</td>
+<td align="left"><strong>prison</strong> (45)</td>
+<td align="left"><strong>money laundering</strong> (10)</td>
+<td align="left"><strong>situational action theory</strong> (4)</td>
+</tr>
+<tr class="odd">
+<td align="right">9</td>
+<td align="left"><strong>control</strong> (41)</td>
+<td align="left"><strong>procedural justice</strong> (10)</td>
+<td align="left"><strong>twenty first century</strong> (4)</td>
+</tr>
+<tr class="even">
+<td align="right">10</td>
+<td align="left"><strong>theory</strong> (38)</td>
+<td align="left"><strong>controlled trial</strong> (8)</td>
+<td align="left"><strong>justice involved youth</strong> (3)</td>
+</tr>
+</tbody>
+</table>
+<p>Criminology, like all academic disciplines, uses its share of jargon. Excluding the most common 40,000 or so English words using a <a href="http://wordlist.aspell.net/12dicts-readme/#nof12">dictionary word list</a> leaves only ‘uncommon’ or jargon words, the most-frequent of which are:</p>
+<p><img src="2018-in-crim-research_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>These mostly represent technical terms (‘post traumatic’, ‘cybercrime’) or initials (‘ISIS’, ‘PTSD’) but also some neologisms (‘responsivity’ doesn’t yet appear to have made it into dictionaries) and topical terms such as ‘ferguson’.</p>
+</div>
+<div id="articles-that-subscribers-are-interested-in-tend-to-be-applied-studies" class="section level1">
+<h1>Articles that subscribers are interested in tend to be applied studies</h1>
+<p>While it’s only a <em>very</em> approximate measure of article popularity, CrimPapers records whenever a subscriber clicks on an article link in an email update, tweet or RSS item. There are obviously better metrics of interest, but these tend not to be widely available (such as downloads, which not all publishers release) or slow to emerge (such as citations, which are dependent on publishing processes).</p>
+<p>The median article was clicked on 45 times, mostly from Twitter. CrimPapers subscribers are a mixture of academics, policy professionals and practitioners, generally (as far as I can tell through an unsystematic survey of Twitter profiles) with or studying for a PhD. The 20 articles those subscribers clicked on most in 2018 were:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Rank</th>
+<th align="left">Title</th>
+<th align="right">Clicks</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left"><a href="http://journals.sagepub.com/doi/abs/10.1177/1098611118784007?ai=2b4&amp;mi=ehikzz&amp;af=R">A Systematic Social Observation Study of Police De-Escalation Tactics</a>, Police Quarterly</td>
+<td align="right">551</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left"><a href="http://link.springer.com/10.1007/s11292-018-9328-4">The Mobilization of Computerized Crime Mapping: A Randomized Controlled Trial</a>, Journal of Experimental Criminology</td>
+<td align="right">432</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left"><a href="http://link.springer.com/10.1007/s10940-018-9379-8">Illicit Network Dynamics: the Formation and Evolution of A Drug Trafficking Network</a>, Journal of Quantitative Criminology</td>
+<td align="right">415</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="left"><a href="https://www.emeraldinsight.com/doi/abs/10.1108/PIJPSM-09-2017-0117?af=R">Data and Evidence Challenges Facing Place-Based Policing</a>, Policing: An International Journal of Police Strategies and Management</td>
+<td align="right">403</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/07418825.2018.1465579?ai=13o&amp;mi=fnpx1z&amp;af=R">The Impact of Hot Spots Policing on Collective Efficacy: Findings From A Randomized Field Trial</a>, Justice Quarterly</td>
+<td align="right">395</td>
+</tr>
+<tr class="even">
+<td align="right">6</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/18335330.2018.1482563?ai=2vn&amp;mi=fnpx1z&amp;af=R">Financial Intelligence and Financial Investigation: Opportunities and Challenges</a>, Journal of Policing, Intelligence and Counter Terrorism</td>
+<td align="right">392</td>
+</tr>
+<tr class="odd">
+<td align="right">7</td>
+<td align="left"><a href="http://link.springer.com/10.1007/s10610-017-9368-8">Terrorism Risk Forecasting By Ideology</a>, European Journal on Criminal Policy and Research</td>
+<td align="right">337</td>
+</tr>
+<tr class="even">
+<td align="right">8</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/10509674.2018.1441210?ai=1d8&amp;mi=fnpx1z&amp;af=R">The Multisite Family Study on Incarceration, Partnering, and Parenting: Design and Sample</a>, Journal of Offender Rehabilitation</td>
+<td align="right">324</td>
+</tr>
+<tr class="odd">
+<td align="right">9</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/01639625.2018.1556994?ai=184&amp;mi=fnpx1z&amp;af=R">Measuring the Evolution of Radical Right-Wing Posting Behaviors Online</a>, Deviant Behavior</td>
+<td align="right">307</td>
+</tr>
+<tr class="even">
+<td align="right">10</td>
+<td align="left"><a href="https://crimesciencejournal.springeropen.com/articles/10.1186/s40163-018-0082-8">Did Cybercrime Cause the Crime Drop?</a>, Crime Science</td>
+<td align="right">306</td>
+</tr>
+<tr class="odd">
+<td align="right">11</td>
+<td align="left"><a href="https://scholarlycommons.law.northwestern.edu/jclc/vol108/iss3/3">The Effects of Body-Worn Cameras on Police Activity and Police-Citizen Encounters: A Randomized Controlled Trial</a>, Journal of Criminal Law and Criminology</td>
+<td align="right">294</td>
+</tr>
+<tr class="even">
+<td align="right">12</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/10439463.2018.1557180?ai=x2&amp;mi=fnpx1z&amp;af=R">Are the Police Embracing Evidence-Informed Practice? A View From England and Wales</a>, Policing and Society</td>
+<td align="right">289</td>
+</tr>
+<tr class="odd">
+<td align="right">13</td>
+<td align="left"><a href="http://onlinelibrary.wiley.com/resolve/doi?DOI=10.1111%2F1745-9133.12337">Can You Build A Better Cop?</a>, Criminology and Public Policy</td>
+<td align="right">284</td>
+</tr>
+<tr class="even">
+<td align="right">14</td>
+<td align="left"><a href="https://academic.oup.com/policing/advance-article/doi/10.1093/police/pay043/5050176?rss=1">How Police Leaders Learn to Lead</a>, Policing: a Journal of Policy and Practice</td>
+<td align="right">283</td>
+</tr>
+<tr class="odd">
+<td align="right">15</td>
+<td align="left"><a href="https://academic.oup.com/policing/advance-article/doi/10.1093/police/pay075/5184553?rss=1">Do Graduate Police Officers Make A Difference to Policing? Results of An Integrative Literature Review</a>, Policing: a Journal of Policy and Practice</td>
+<td align="right">272</td>
+</tr>
+<tr class="even">
+<td align="right">16</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/10511253.2018.1439513?ai=11f&amp;mi=fnpx1z&amp;af=R">Teaching Cybersecurity to Criminal Justice Majors</a>, Journal of Criminal Justice Education</td>
+<td align="right">263</td>
+</tr>
+<tr class="odd">
+<td align="right">17</td>
+<td align="left"><a href="http://journals.sagepub.com/doi/abs/10.1177/0887403417725370?ai=2b4&amp;mi=ehikzz&amp;af=R">The Effect of Various Police Enforcement Actions on Violent Crime: Evidence From A Saturation Foot-Patrol Intervention</a>, Criminal Justice Policy Review</td>
+<td align="right">261</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left"><a href="https://academic.oup.com/policing/advance-article/doi/10.1093/police/pay007/4850523?rss=1">Policing the ‘middle of Nowhere’: Officer Working Strategies in Isolated Communities</a>, Policing: a Journal of Policy and Practice</td>
+<td align="right">250</td>
+</tr>
+<tr class="odd">
+<td align="right">19</td>
+<td align="left"><a href="https://www.tandfonline.com/doi/full/10.1080/09546553.2018.1432218?ai=vx&amp;mi=fnpx1z&amp;af=R">Securitization and the Proscription of Terrorist Organizations in Spain</a>, Terrorism and Political Violence</td>
+<td align="right">243</td>
+</tr>
+<tr class="even">
+<td align="right">20</td>
+<td align="left"><a href="http://journals.sagepub.com/doi/abs/10.1177/0306624X18779202?ai=2b4&amp;mi=ehikzz&amp;af=R">Long-Term Effectiveness of A Brief Restorative Justice Intervention</a>, International Journal of Offender Therapy and Comparative Criminology</td>
+<td align="right">239</td>
+</tr>
+</tbody>
+</table>
+<p>The top 14 articles all come from different journals, including journals that are not among what might be considered the top journals in the field. With some exceptions, popular articles tend to be on applied topics, which may reflect the the practitioners and policy professions among subscribers. In particular, the only journal to appear more than once (<em><a href="http://policing.oxfordjournals.org/">Policing: a Journal of Policy and Practice</a></em>) was specifically established to publish research of interest to practitioners, and requires authors to submit articles with that in mind (e.g. by setting a low word limit).</p>
+</div>
+<div id="article-titles-matter" class="section level1">
+<h1>Article titles matter</h1>
+<p>For reasons of space, CrimPapers alerts consist only of the article title, the journal and a link to the full text. For example, a CrimPapers tweet looks like:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“School Variation in Offending: A Macro-Level Strain Approach” in Eur J Criminol <a href="https://t.co/zv5QBNgBjj">https://t.co/zv5QBNgBjj</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/1079723035366690817?ref_src=twsrc%5Etfw">December 31, 2018</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<script async src="http://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>For this reason, the usefulness of an article title is likely to be important in piquing the interest of readers. This is equally true for potential readers who are searching on Google Scholar or other platforms, so authors should give some thought to their title choices.</p>
+<p>Unfortunately, not all articles have titles that facilitate interest. There are various problems with article titles, but some of the more common ones are easy to eliminate. The first is the generic title that could be applied to any article on the topic, with no indication of the article’s particular contribution. For example:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“Police Use of Body Worn Cameras” in Police Pract Res <a href="https://t.co/ohMS5TVV5t">https://t.co/ohMS5TVV5t</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/1075349147379793920?ref_src=twsrc%5Etfw">December 19, 2018</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>which could have been the title of any of the articles that mentioned ‘body worn’ in the title in 2018. The second is the title beset by <a href="https://opinionator.blogs.nytimes.com/2012/07/23/zombie-nouns/">academic word soup</a>, such as:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“The Illusion of Resistance: Commodification and Reification of Neoliberalism and the State” in Crit Criminol <a href="https://t.co/CLkPSjFD2z">https://t.co/CLkPSjFD2z</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/916217731808153600?ref_src=twsrc%5Etfw">October 6, 2017</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>or:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“The Consumption of Patriarchy: Commodification to Facilitation and Reification” in Contemp Justice Rev <a href="https://t.co/5fCRBIb8rr">https://t.co/5fCRBIb8rr</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/847379136234389505?ref_src=twsrc%5Etfw">March 30, 2017</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>A useful rule-of-thumb here may be that a reasonably educated non-specialist should be able to read at least the article title without having to reach for a dictionary.</p>
+<p>A related problem is titles that make enigmatic reference only to a case study or analogy that will be explained in the text but means nothing to a person reading the title (either on CrimPapers or anywhere else). For example:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“From Passengers to Crew: Introductory Reflections” in Crime Law Soc Change <a href="https://t.co/Can9IW8FK6">https://t.co/Can9IW8FK6</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/888026974949605376?ref_src=twsrc%5Etfw">July 20, 2017</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>or</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“Justice For Ms Dhu” in Soc Legal Stud <a href="https://t.co/RYOq8DAp8Y">https://t.co/RYOq8DAp8Y</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/919909560143532033?ref_src=twsrc%5Etfw">October 16, 2017</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>In both cases these are the full article titles. Uninformative titles seem to be particularly common in special issues (there were several articles simply titled ‘Introduction’). This is probably because editors are thinking of the special issue as a single (paper bound) document, whereas readers are probably more likely to find special-issue articles in the same way they find any other article: by doing a keyword search in their favored search engine. This is particularly true now that special-issue articles are sometimes released online one-by-one as copy editing is finished. This is just one of many ways academics’ thinking about publishing hasn’t caught up with the realities of online journals.</p>
+<p>So, what does a good article title look like? At the very least, a title should set out the subject of the study such that it can be distinguished from other related works. For example:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“Are College-Educated Police Officers Different? A Study of Stops, Searches, and Arrests” in Crim Justice Policy Rev <a href="https://t.co/OTvC7rGKoF">https://t.co/OTvC7rGKoF</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/1075359694422769665?ref_src=twsrc%5Etfw">December 19, 2018</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>Perhaps even better though is to give the <em>answer</em> to your question in the title. This is much more common in other disciplines, but is quite rare in criminology. When people do this, however, it’s very useful. For example:</p>
+<blockquote class="twitter-tweet" data-lang="en">
+<p lang="en" dir="ltr">
+“The Use of Victim Video Statements in Family Violence Cases Increases the Rate of Early Guilty Pleas” in J Interpers Violence <a href="https://t.co/njbKy2sFoQ">https://t.co/njbKy2sFoQ</a>
+</p>
+— Criminology Papers (<span class="citation">@CrimPapers</span>) <a href="https://twitter.com/CrimPapers/status/1075118376199090176?ref_src=twsrc%5Etfw">December 18, 2018</a>
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</div>
+<div id="the-data" class="section level1">
+<h1>The data</h1>
+<p>The <a href="https://github.com/mpjashby/2018-in-crim-research">data used in this article are available on GitHub</a> along with the code used to produce the tables and charts. If you have any comments or questions, please <a href="https://twitter.com/lesscrime">send me a tweet</a>.</p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,710 @@
+---
+title: "What got published in criminology journals in 2018?"
+author: "[Matt Ashby](http://lesscrime.info/)"
+date: "1 January 2019"
+output: 
+  html_document:
+    self_contained: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!--
+
+The data used in this project are extracted from the CrimPapers SQL database 
+using the queries:
+
+/* select all active journals as of 31/12/2018 */
+SELECT `journals`.`id` AS `journal_id`, 
+  `journals`.`name`, 
+  `publishers`.`publisher_name` AS `publisher`,
+  `journals`.`homepage`, 
+  `journals`.`impact` 
+FROM `journals`, `publishers` 
+WHERE `active` = 1
+  AND `journals`.`publisher` = `publishers`.`id`
+
+/* select all journal articles published in 2018 */
+SELECT `articles`.`id` AS `article_id`, 
+  `articles`.`title`, 
+  `articles`.`description`, 
+  `articles`.`link`, 
+  `articles`.`timestamp`, 
+  `articles`.`clicks`, 
+  `journals`.`name` AS `journal` 
+FROM `articles`, `journals` 
+WHERE `articles`.`timestamp` >= "2018-01-01 00:00:00" 
+  ANd `articles`.`timestamp` < "2019-01-01 00:00:00"
+  AND `articles`.`excluded` = 0
+  AND `journals`.`active` = 1
+  AND `journals`.`id` = `articles`.`journal`
+ORDER BY `articles`.`id` ASC
+
+The resulting records are stored in CSV files.
+
+-->
+
+```{r load packages, include=FALSE}
+library("tidytext")
+library("topicmodels")
+library("ggrepel")
+library("tidyverse")
+```
+
+
+```{r create functions, include=FALSE}
+vector_in_text <- function (x) {
+	if (length(x) < 2) {
+		x
+	} else if (length(x) == 2) {
+		paste(x, collapse = " and ")
+	} else {
+		x <- c(
+			x[1:(length(x) - 2)], 
+			paste0(x[[length(x) - 1]], " and ", x[[length(x)]])
+		)
+		paste(x, collapse = ", ")
+	}
+}
+```
+
+
+
+```{r load data, include=FALSE}
+articles <- read_csv("./articles.csv", col_types = cols(
+  article_id = col_integer(),
+  title = col_character(),
+  description = col_character(),
+  link = col_character(),
+  timestamp = col_datetime(format = ""),
+  clicks = col_integer(),
+  journal = col_character()
+))
+
+journals <- read_csv("./journals.csv", col_types = cols(
+  journal_id = col_integer(),
+  name = col_character(),
+  publisher = col_character(),
+  homepage = col_character(),
+  impact = col_integer()
+)) %>% 
+  mutate(
+    is_journal = case_when(
+      publisher == "Home Office" ~ FALSE,
+      TRUE ~ TRUE
+    ),
+    category = case_when(
+      name %in% c("American Journal of Criminal Justice", 
+                  "Contemporary Justice Review", "Criminal Justice Ethics", 
+                  "Criminal Justice Matters", "Criminal Justice Policy Review",
+                  "Criminal Justice Review", "Criminal Justice Studies",
+                  "European Journal of Probation", 
+                  "Howard Journal of Criminal Justice",
+                  "International Criminal Justice Review",
+                  "Journal of Contemporary Criminal Justice", 
+                  "Journal of Criminal Justice", 
+                  "Justice Evaluation Journal", "Justice Quarterly",
+                  "Justice Research and Policy", "Justice System Journal",
+                  "Journal of Ethnicity in Criminal Justice", 
+                  "Race and Justice") ~ "criminal justice",
+      name %in% c("Feminist Criminology", "Journal of Family Violence", 
+                  "Journal of Gender-Based Violence", 
+                  "Violence Against Women", "Women and Criminal Justice") ~ 
+        "gender and crime",
+      name %in% c("Crime Psychology Review", 
+                  "Criminal Behaviour and Mental Health", "Health and Justice",
+                  "Journal of Investigative Psychology and Offender Profiling",
+                  "Journal of Police and Criminal Psychology",
+                  "Legal and Criminological Psychology", 
+                  "Psychiatry, Psychology and Law",
+                  "Psychology, Crime and Law") ~ "health and psychology of crime",
+      name %in% c("Corrections: Policy, Practice and Research",
+                  "Journal of Offender Rehabilitation", "Prison Journal",
+                  "Punishment and Society", "Restorative Justice") ~ "penology",
+      name %in% c("Cambridge Journal of Evidence-Based Policing",
+                  "European Journal of Policing Studies", 
+                  "European Law Enforcement Research Bulletin",
+                  "International Journal of Police Science & Management",
+                  "Journal of Policing, Intelligence and Counter Terrorism",
+                  "Police Journal", "Police Practice and Research",
+                  "Police Quarterly", "Policing and Society",
+                  "Policing: a Journal of Policy and Practice",
+                  "Policing: An International Journal of Police Strategies and Management") ~ "policing",
+      name %in% c("Child Abuse and Neglect", 
+                  "Dignity: A Journal on Sexual Exploitation and Violence",
+                  "Journal of Child Sexual Abuse", 
+                  "Journal of Sexual Aggression", 
+                  "Sexual Abuse: Journal of Research and Treatment") ~ 
+        "sex offending",
+      name %in% c("Behavioral Sciences of Terrorism and Political Aggression",
+                  "Critical Studies on Terrorism", 
+                  "Dynamics of Asymmetric Conflict: Pathways toward terrorism and genocide",
+                  "Perspectives on Terrorism", 
+                  "Studies in Conflict and Terrorism", 
+                  "Terrorism and Political Violence") ~ "terrorism",
+      name %in% c("Aggression and Violent Behavior", "Homicide Studies",
+                  "Journal of Aggression, Maltreatment and Trauma",
+                  "Journal of Interpersonal Violence", 
+                  "Journal of School Violence", "Psychology of Violence",
+                  "Trauma, Violence and Abuse", "Violence and Victims",
+                  "Youth Violence and Juvenile Justice") ~ "violence",
+      name %in% c("Crime, Media, Culture", "Critical Criminology", 
+                  "Global Crime", 
+                  "International Journal of Offender Therapy and Comparative Criminology",
+                  "International Journal of Speech Language and the Law", 
+                  "International Review of Victimology", 
+                  "Journal of Criminal Justice Education", 
+                  "Journal of Developmental and Life-Course Criminology", 
+                  "Journal of Financial Crime", "Journal of Human Trafficking", 
+                  "Theoretical Criminology", "Trends in Organized Crime", 
+                  "Victims and Offenders") ~ "other",
+      TRUE ~ "general/regional"
+    )
+  ) %>% 
+  filter(is_journal == TRUE) %>% 
+  select(-is_journal) %>% 
+  left_join(summarise(group_by(articles, journal), n_articles = n()),
+            by = c("name" = "journal")) %>% 
+  replace_na(list(`n_articles` = 0)) %>% 
+  arrange(desc(n_articles))
+
+publishers <- journals %>% 
+  group_by(publisher) %>% 
+  summarise(n_journals = n(), n_articles = sum(n_articles)) %>% 
+  filter(n_articles > 0) %>% 
+  arrange(desc(n_articles)) %>% 
+  mutate(prop_articles = cumsum(n_articles) / sum(n_articles))
+```
+
+[CrimPapers](http://lesscrime.info/crimpapers/) is a service that provides 
+alerts on new papers published in criminology, criminal justice and related
+journals. Alerts are available as a [daily email](http://lesscrime.info/crimpapers/today/),
+[weekly email](http://lesscrime.info/crimpapers/thisweek/), [Twitter feed](https://twitter.com/CrimPapers) or [RSS feed](http://lesscrime.info/crimpapers/rss/). As of the end of 2018, about
+4,300 people subscribe to CrimPapers alerts in one format or another.
+The service is completely free: [sign up or get more information](http://lesscrime.info/crimpapers/).
+
+We can use the information gathered to generate these alerts to find out more
+about what gets published in criminology journals. Unfortunately, journal
+publishers only provide very limited information about articles, so this 
+analysis is largely based on article titles. Hopefully in future publishers will
+provide more information in their RSS feeds. In the meantime, this is a basic look at what got published in 2018.
+
+# There are more than 100 criminology journals
+
+As of the end of 2018, CrimPapers tracks articles in **[`r nrow(journals)`
+criminology journals](http://lesscrime.info/crimpapers/list/)**, including 
+criminal justice, penology and terrorism. This is more criminology journals 
+than I would ever have guessed existed before starting a list of them, yet the 
+number is rising: *[Annual Review of Criminology](http://www.annualreviews.org/journal/criminol)* 
+and *[Justice Evaluation Journal](https://www.tandfonline.com/loi/rjej20)* 
+launched this year, on top of several launches in 2017.
+
+There were `r nrow(publishers)` publishers producing criminology journals in 
+2018. Three publishers (`r paste(head(publishers$publisher, 3), sep = ", ")`)
+released more than three quarters of all articles this year, while three others
+(`r paste(tail(publishers$publisher, 3), sep = ", ")`) released fewer than 10
+articles each.
+
+```{r journals by topic, echo=FALSE}
+journals_by_category <- journals %>%
+  group_by(category) %>% 
+  summarise(journals = n(), articles = sum(n_articles)) %>% 
+  arrange(desc(journals))
+
+specialist_journal_count <- journals_by_category %>% 
+  filter(category != "general/regional") %>% 
+  summarise(sum = sum(journals)) %>% 
+  pull(sum)
+
+cj_journal_count <- journals_by_category %>% 
+  filter(category %in% c("criminal justice", "policing", "penology")) %>% 
+  summarise(sum = sum(journals)) %>% 
+  pull(sum)
+```
+
+As well as general criminology journals such as *[Criminology](http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1745-9125)*
+and the various national and regional journals, there are over 
+`r round(specialist_journal_count / 10) * 10` specialist journals covering
+different topics. These journals can be approximately categorized as:
+
+```{r table of journals by topic, echo=FALSE}
+journals_by_category %>% 
+  mutate(
+    articles = scales::percent(articles / sum(articles), accuracy = 1),
+    row = ifelse(category == "other", 10^4, row_number())
+  ) %>% 
+  arrange(row) %>% 
+  select(-row) %>% 
+  rename_all(str_to_title) %>% 
+  knitr::kable(align = c("l", "r", "r"))
+```
+
+The number of journals focused on criminal justice, policing and penology
+(`r cj_journal_count` journals between the three categories) indicates the focus
+of criminologists on formal responses to crime. Conversely, there is only one
+specialist journal for crime prevention
+(*[Crime Prevention and Community Safety](http://www.palgrave-journals.com/cpcs/)*)
+and no specialist journals for topics such as crime analysis.
+
+There are fewer journals focused on specific types of crime, but again these
+perhaps indicate the topics that primarily interest criminologists. Violence,
+sex offending and terrorism are the only crime types with more than two 
+specialist journals. There are many common and important crime types that have
+only one specialist journal (such as *[Journal of Financial Crime](http://www.emeraldinsight.com/loi/jfc)*) or no journals at all. Articles
+covering these crime types can of-course be published in general criminology
+journals, but authors may face the additional hurdle of editors wanting content
+that has general applicability. This may mean there is less of an evidence base
+for types of crime that are not fashionable enough to have their own journals.
+
+
+# There are more criminology articles than you can possibly read
+
+In 2018 there were **`r format(nrow(articles), big.mark = ",")` different 
+articles** published in criminology journals, an average of 
+`r format(nrow(articles) / 365, big.mark = ",", digits = 0)` per day or
+`r format(nrow(articles) / 52, big.mark = ",", digits = 0)` per week.
+*`r head(journals$name, 1)`*, published by `r head(journals$publisher, 1)`, 
+released `r format(head(journals$n_articles, 1), big.mark = ",")` articles 
+during the year (an average of `r format(head(journals$n_articles, 1) / 12, big.mark = ",", digits = 0)` 
+a month), which suggests an impressive amount of editorial work. 
+<!--
+`r vector_in_text(pull(mutate(filter(journals, n_articles > 100), name = paste0("*", name, "*")), "name"))` all published more than 100 articles during the year.
+-->
+
+The median journal published `r format(median(journals$n_articles), digits = 0)`
+articles during the year, with half of journals (including all of the top five
+by impact factor) publishing between `r format(quantile(journals$n_articles, 0.25), digits = 0)` 
+and `r format(quantile(journals$n_articles, 0.75), digits = 0)` articles each.
+
+```{r eval=FALSE, include=FALSE}
+articles %>% 
+  mutate(date = lubridate::date(timestamp)) %>% 
+  count(date, sort = FALSE) %>% 
+  pull(n) %>% 
+  ts(frequency = 7) %>%
+  # head()
+  stl(s.window = "periodic") %>%
+  plot()
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+journals %>% 
+  mutate(
+    label = ifelse(
+      name %in% c(
+        "Criminology", "Journal of Interpersonal Violence", 
+        "Child Abuse and Neglect", "Deviant Behavior", 
+        "International Journal of Offender Therapy and Comparative Criminology",
+        "Trauma, Violence and Abuse", "Journal of Quantitative Criminology",
+        "Journal of Experimental Criminology",
+        "Sexual Abuse: Journal of Research and Treatment"),
+      name,
+      ""
+    ),
+    label = str_wrap(label, width = 20),
+    has_label = ifelse(label == "", FALSE, TRUE),
+    x = floor(n_articles / 10) * 10
+  ) %>% 
+  group_by(x) %>% 
+  arrange(x, has_label) %>% 
+  mutate(
+    y = row_number()
+  ) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = x, y = y, label = label)) + 
+  geom_point(position = position_nudge(y = 0.5), size = 3) + 
+  geom_text_repel(aes(label = label), lineheight = 0.9, size = 3, force = 1,
+                  point.padding = 1, max.iter = 10^5,
+                  position = position_nudge(y = 0.5)) +
+  # geom_dotplot(binwidth = 10, colour = NA, dotsize = 0.8, method = "histodot", 
+  #              stackratio = 1.2) + 
+  # scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0.02, 0)) +
+  labs(
+    title = "Number of articles published by each journal",
+    x = "number of articles",
+    y = "number of journals"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.text.y = element_blank(),
+    legend.position = "none",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+We can explore the subjects of journal articles by looking for the most-common
+words and two- and three-word phrases in article titles.
+
+```{r word frequency, echo=FALSE}
+common_ngrams <- list()
+
+common_ngrams[["single words"]] <- articles %>% 
+  unnest_tokens(word, title) %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(word, sort = TRUE) %>%
+  filter(!word %in% c("among", "â", "s", "review", "analysis", "study", "role", 
+                      "factors", "impact", "based", "case", "effects",
+                      "research", "use"))
+
+common_ngrams[["two-word phrases"]] <- articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 2) %>% 
+  separate(word, c("word1", "word2"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  count(word, sort = TRUE) %>% 
+  filter(!word %in% c("intimate partner", "partner violence", "child sexual",
+                      "womenâ s"))
+
+common_ngrams[["three-word phrases"]] <- articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 3) %>% 
+  separate(word, c("word1", "word2", "word3"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word3" = "word")) %>% 
+  count(word, sort = TRUE)
+
+common_ngrams <- common_ngrams %>% 
+  bind_rows(.id = "type") %>% 
+  remove_missing(na.rm = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  group_by(type) %>% 
+  slice(1:10) %>% 
+  mutate(rank = row_number()) %>% 
+  ungroup()
+
+common_ngrams %>% 
+  mutate(
+    type = factor(type, levels = c("single words", "two-word phrases",
+                                   "three-word phrases")),
+    word = paste0(word, " (", n, ")"),
+    word = reorder(word, n)
+  ) %>%
+  select(-n) %>% 
+  spread(type, word) %>% 
+  # mutate(rank = english::ordinal(rank)) %>% 
+  rename_all(str_to_title) %>% 
+  knitr::kable()
+```
+
+
+Again we see particular focus on violence (especially intimate partner violence
+and child abuse) and the criminal justice system. Also evident in the two- and
+three-word phrases are criminological methods such as the systematic review and
+the randomized controlled trial. Some currently popular topics are also present,
+including body-worn video cameras ("body worn" appeared in `r nrow(filter(articles, str_detect(str_replace_all(str_to_lower(title), "-", " "), "body worn")))` article titles) and adverse childhood experiences ("adverse 
+childhood" appeared in `r nrow(filter(articles, str_detect(str_to_lower(title), "adverse childhood")) %>% select(title))` article titles).
+
+We can also look at the words that most-often modify (i.e. appear directly 
+before) the most-common single words:
+
+
+```{r echo=FALSE}
+most_common_1grams <- common_ngrams %>% 
+  gather(key, value, -type) %>% 
+  filter(type == "single words") %>% 
+  slice(1:10) %>% 
+  pull(value)
+
+articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 2) %>% 
+  separate(word, c("word1", "word2"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  filter(word2 %in% most_common_1grams, word1 != "s") %>% 
+  mutate(word = str_replace_all(word, "â", "")) %>% 
+  group_by(word) %>%
+  summarise(n = n()) %>% 
+  arrange(desc(n)) %>% 
+  separate(word, c("word1", "word2"), sep = " ", remove = FALSE) %>% 
+  group_by(word2) %>% 
+  slice(1:5) %>% 
+  mutate(word1 = paste0(word1, " (", n, ")")) %>% 
+  summarise(modifiers = paste(word1, collapse = ", ")) %>% 
+  mutate(word2 = factor(word2, levels = most_common_1grams)) %>% 
+  arrange(word2) %>% 
+  rename(`most-common word` = word2, `most-common modifiers` = modifiers) %>% 
+  rename_all(str_to_title) %>% 
+  knitr::kable()
+```
+
+Looking at word co-occurrence like this mainly confirms the patterns we've 
+already seen, but gives some additional information about the types of risk
+and justice commonly mentioned in article titles.
+
+Some specialist journals publish large numbers of papers (`r vector_in_text(pull(mutate(filter(journals, n_articles > 100), name = paste0("*", name, "*")), "name"))` all published more than 100
+articles in 2018), which may skew the most-common topics. Restricting the search
+for common words and phrases to only the 
+`r nrow(filter(journals, category == "general/regional"))` general and regional
+journals produces somewhat different results. Terms that do not appear in the
+corresponding table for all journals are marked in bold.
+
+```{r general word frequency, echo=FALSE}
+general_ngrams <- list()
+
+general_articles <- articles %>% 
+  left_join(journals, by = c("journal" = "name")) %>% 
+  filter(category == "general/regional")
+
+general_ngrams[["single words"]] <- general_articles %>% 
+  unnest_tokens(word, title) %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(word, sort = TRUE) %>%
+  filter(!word %in% c("among", "â", "s", "review", "analysis", "study", "role", 
+                      "factors", "impact", "based", "case", "effects",
+                      "research", "use"))
+
+general_ngrams[["two-word phrases"]] <- general_articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 2) %>% 
+  separate(word, c("word1", "word2"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  count(word, sort = TRUE) %>% 
+  filter(!word %in% c("intimate partner", "partner violence", "child sexual",
+                      "womenâ s"))
+
+general_ngrams[["three-word phrases"]] <- general_articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 3) %>% 
+  separate(word, c("word1", "word2", "word3"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word3" = "word")) %>% 
+  count(word, sort = TRUE)
+
+general_ngrams %>% 
+  bind_rows(.id = "type") %>% 
+  remove_missing(na.rm = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  group_by(type) %>% 
+  slice(1:10) %>% 
+  mutate(rank = row_number()) %>% 
+  ungroup() %>% 
+  left_join(common_ngrams, by = "word", suffix = c("", "_common")) %>% 
+  mutate(
+    type = factor(type, levels = c("single words", "two-word phrases",
+                                   "three-word phrases")),
+    word = ifelse(is.na(type_common), paste0("**", word, "**"), word),
+    word = paste0(word, " (", n, ")"),
+    word = reorder(word, n)
+  ) %>%
+  select(-n, -ends_with("_common")) %>% 
+  spread(type, word) %>% 
+  # mutate(rank = english::ordinal(rank)) %>% 
+  rename_all(str_to_title) %>% 
+  knitr::kable()
+```
+
+
+Criminology, like all academic disciplines, uses its share of jargon. Excluding
+the most common 40,000 or so English words using a 
+[dictionary word list](http://wordlist.aspell.net/12dicts-readme/#nof12) leaves 
+only 'uncommon' or jargon words, the most-frequent of which are:
+
+
+```{r echo=FALSE, message=FALSE}
+# word list obtained from http://wordlist.aspell.net/12dicts-readme/#nof12
+word_list <- read_table("./2of12inf.txt", col_names = c("word"), 
+           col_types = cols(word = col_character())) %>% 
+  mutate(
+    neologism = ifelse(str_detect(word, "!"), TRUE, FALSE),
+    word = str_remove_all(word, "\\W+?") # "\\!|\\$|\\+|\\~|\\=|\\%"
+  ) %>%
+  filter(neologism == FALSE) %>%
+  select(word)
+
+# countries from https://www.myenglishpages.com/site_php_files/vocabulary-lesson-countries-nationalities.php
+countries_list <- read_delim("./countries.txt", delim = "\t") %>% 
+  janitor::clean_names() %>% 
+  mutate_all(str_to_lower) %>% 
+  select(country, adjective) %>% 
+  gather("key", "word") %>% 
+  select(word)
+
+word_list <- bind_rows(word_list, countries_list)
+
+articles %>% 
+  mutate(
+    title = str_replace_all(title, coll("â€™"), "'"),
+    title = str_replace_all(title, coll("â€œ"), "\""),
+    title = str_replace_all(title, coll("â€"), "\""),
+    title = str_replace_all(title, coll("ised"), "ized"),
+    title = str_remove_all(title, coll("'s")),
+    title = str_remove_all(title, "\\d")
+  ) %>% 
+  unnest_tokens(word, title, drop = FALSE) %>% 
+  anti_join(word_list, by = "word") %>% 
+  filter(!word %in% c("a", "non", "meta", "u.s.", "i", "isbn", "co", "pp", 
+                      "multi", "al", "don't", "s", "u.s", "islamic", "african",
+                      "africa", "america", "uk", "european", "korea", "york",
+                      "latino", "â", "london", "california", "de", "korean",
+                      "pre", "eu", "asia", "asian", "j", "r", "internet", 
+                      "texas", "muslim", "nordic", "europe")) %>%
+  count(word, sort = TRUE) %>% 
+  top_n(20, n) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot() +
+  geom_col(aes(word, n)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  coord_flip() +
+  labs(
+    title = "Most frequent 'uncommon' words in criminology article titles",
+    y = "number of mentions in article titles"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.title.y = element_blank(),
+    legend.position = "none",
+    panel.grid.major.y = element_blank()
+  )
+```
+
+These mostly represent technical terms ('post traumatic', 'cybercrime') or 
+initials ('ISIS', 'PTSD') but also some neologisms ('responsivity' doesn't yet
+appear to have made it into dictionaries) and topical terms such as 'ferguson'.
+
+```{r eval=FALSE, include=FALSE}
+general_articles %>% 
+  unnest_tokens(word, title, token = "ngrams", n = 3) %>% 
+  separate(word, c("word1", "word2", "word3"), sep = " ", remove = FALSE) %>% 
+  anti_join(get_stopwords(), by = c("word1" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word2" = "word")) %>% 
+  anti_join(get_stopwords(), by = c("word3" = "word")) %>% 
+  count(article_id, word, sort = TRUE) %>%
+  cast_dtm(article_id, word, n) %>% 
+  LDA(k = 10) %>% 
+  tidy(matrix = "beta") %>% 
+  group_by(topic) %>% 
+  top_n(5, beta) %>% 
+  summarise(terms = vector_in_text(term))
+  # ungroup() %>% 
+  # arrange(topic, -beta)
+```
+
+# Articles that subscribers are interested in tend to be applied studies
+
+While it's only a *very* approximate measure of article popularity, CrimPapers
+records whenever a subscriber clicks on an article link in an email update, 
+tweet or RSS item. There are obviously better metrics of interest, but these
+tend not to be widely available (such as downloads, which not all publishers
+release) or slow to emerge (such as citations, which are dependent on publishing
+processes). 
+
+The median article was clicked on `r round(median(articles$clicks))` times,
+mostly from Twitter. CrimPapers subscribers are a mixture of academics, policy
+professionals and practitioners, generally (as far as I can tell through an
+unsystematic survey of Twitter profiles) with or studying for a PhD. The 20 
+articles those subscribers clicked on most in 2018 were:
+
+```{r echo=FALSE}
+articles %>% 
+  arrange(desc(clicks)) %>% 
+  top_n(20, clicks) %>% 
+  mutate(
+    rank = row_number(),
+    title = str_replace_all(title, coll("â€™"), "'"),
+    title = str_replace_all(title, coll("â€œ"), "'"),
+    title = str_replace_all(title, coll("â€˜"), "'"),
+    title = str_replace_all(title, coll("â€"), "'"),
+    title = paste0("[", title, "](", link, "), ", journal)
+  ) %>% 
+  select(rank, title, clicks) %>% 
+  rename_all(str_to_title) %>% 
+  knitr::kable()
+```
+
+The top 14 articles all come from different journals, including journals that
+are not among what might be considered the top journals in the field. With some
+exceptions, popular articles tend to be on applied topics, which may reflect the
+the practitioners and policy professions among subscribers. In particular, the
+only journal to appear more than once (*[Policing: a Journal of Policy and Practice](http://policing.oxfordjournals.org/)*) was specifically established to 
+publish research of interest to practitioners, and requires authors to submit 
+articles with that in mind (e.g. by setting a low word limit).
+
+
+# Article titles matter
+
+For reasons of space, CrimPapers alerts consist only of the article title, the
+journal and a link to the full text. For example, a CrimPapers tweet looks like:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“School Variation in Offending: A Macro-Level Strain Approach” in Eur J Criminol <a href="https://t.co/zv5QBNgBjj">https://t.co/zv5QBNgBjj</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/1079723035366690817?ref_src=twsrc%5Etfw">December 31, 2018</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+<script async src="http://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+For this reason, the usefulness of an article title is likely to be important in
+piquing the interest of readers. This is equally true for potential readers who
+are searching on Google Scholar or other platforms, so authors should give some
+thought to their title choices.
+
+Unfortunately, not all articles have titles that facilitate interest. There are
+various problems with article titles, but some of the more common ones are easy
+to eliminate. The first is the generic title that could be applied to any 
+article on the topic, with no indication of the article's particular 
+contribution. For example:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“Police Use of Body Worn Cameras” in Police Pract Res <a href="https://t.co/ohMS5TVV5t">https://t.co/ohMS5TVV5t</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/1075349147379793920?ref_src=twsrc%5Etfw">December 19, 2018</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+which could have been the title of any of the `r pull(filter(common_ngrams, word == "body worn"), "n")`
+articles that mentioned 'body worn' in the title in 2018. The second is the 
+title beset by [academic word soup](https://opinionator.blogs.nytimes.com/2012/07/23/zombie-nouns/),
+such as:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“The Illusion of Resistance: Commodification and Reification of Neoliberalism and the State” in Crit Criminol <a href="https://t.co/CLkPSjFD2z">https://t.co/CLkPSjFD2z</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/916217731808153600?ref_src=twsrc%5Etfw">October 6, 2017</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+or:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“The Consumption of Patriarchy: Commodification to Facilitation and Reification” in Contemp Justice Rev <a href="https://t.co/5fCRBIb8rr">https://t.co/5fCRBIb8rr</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/847379136234389505?ref_src=twsrc%5Etfw">March 30, 2017</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+A useful rule-of-thumb here may be that a reasonably educated non-specialist 
+should be able to read at least the article title without having to reach for a
+dictionary.
+
+A related problem is titles that make enigmatic reference only to a case study 
+or analogy that will be explained in the text but means nothing to a person
+reading the title (either on CrimPapers or anywhere else). For example:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“From Passengers to Crew: Introductory Reflections” in Crime Law Soc Change <a href="https://t.co/Can9IW8FK6">https://t.co/Can9IW8FK6</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/888026974949605376?ref_src=twsrc%5Etfw">July 20, 2017</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+or
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“Justice For Ms Dhu” in Soc Legal Stud <a href="https://t.co/RYOq8DAp8Y">https://t.co/RYOq8DAp8Y</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/919909560143532033?ref_src=twsrc%5Etfw">October 16, 2017</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+In both cases these are the full article titles. Uninformative titles seem to be
+particularly common in special issues (there were several articles simply titled
+'Introduction'). This is probably because editors are thinking of the special
+issue as a single (paper bound) document, whereas readers are probably more
+likely to find special-issue articles in the same way they find any other 
+article: by doing a keyword search in their favored search engine. This is
+particularly true now that special-issue articles are sometimes released online
+one-by-one as copy editing is finished. This is just one of many ways academics'
+thinking about publishing hasn't caught up with the realities of online 
+journals.
+
+So, what does a good article title look like? At the very least, a title should
+set out the subject of the study such that it can be distinguished from other
+related works. For example:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“Are College-Educated Police Officers Different? A Study of Stops, Searches, and Arrests” in Crim Justice Policy Rev <a href="https://t.co/OTvC7rGKoF">https://t.co/OTvC7rGKoF</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/1075359694422769665?ref_src=twsrc%5Etfw">December 19, 2018</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+Perhaps even better though is to give the *answer* to your question in the 
+title. This is much more common in other disciplines, but is quite rare in
+criminology. When people do this, however, it's very useful. For example:
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">“The Use of Victim Video Statements in Family Violence Cases Increases the Rate of Early Guilty Pleas” in J Interpers Violence <a href="https://t.co/njbKy2sFoQ">https://t.co/njbKy2sFoQ</a></p>&mdash; Criminology Papers (@CrimPapers) <a href="https://twitter.com/CrimPapers/status/1075118376199090176?ref_src=twsrc%5Etfw">December 18, 2018</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+
+# The data
+
+The [data used in this article are available on GitHub](https://github.com/mpjashby/2018-in-crim-research)
+along with the code used to produce the tables and charts. If you have any
+comments or questions, please [send me a tweet](https://twitter.com/lesscrime).
+
+
+
